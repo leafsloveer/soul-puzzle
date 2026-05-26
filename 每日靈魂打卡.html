@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>靈魂碎片拼圖｜每日愛自己紀錄</title>
+    <style>
+        :root {
+            --bg-warm: #fdfaf7;
+            --text-main: #5a5a5a;
+            --accent: #b8c0b5;
+        }
+
+        body {
+            margin: 0; padding: 0; min-height: 100vh;
+            background: linear-gradient(135deg, #fdfcfb 0%, #e2d1c3 100%);
+            font-family: "PingFang TC", "Noto Sans TC", sans-serif;
+            color: var(--text-main);
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 35px;
+            padding: 30px; width: 90%; max-width: 450px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.03);
+            border: 1px solid rgba(255,255,255,0.4);
+            text-align: center;
+        }
+
+        h1 { font-weight: 300; font-size: 1.4rem; letter-spacing: 3px; margin-bottom: 5px; }
+        .subtitle { font-size: 0.8rem; color: #888; margin-bottom: 25px; }
+
+        /* 拼圖板主體：5x5 網格 */
+        .puzzle-board {
+            width: 250px; height: 250px;
+            margin: 0 auto 25px auto;
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(5, 1fr);
+            gap: 2px;
+            background: #eadacf; /* 未解鎖時的底色 */
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            position: relative;
+        }
+
+        /* 拼圖塊：預設是灰色（未解鎖）*/
+        .piece {
+            background: #eadacf;
+            transition: all 0.8s ease;
+        }
+
+        /* 解鎖後的彩色漸層拼圖塊（模擬生命之樹散發出的彩色光芒） */
+        .piece.unlocked {
+            background-image: linear-gradient(135deg, #ffcad4 0%, #b5e2fa 50%, #edafb8 100%);
+            /* 讓每塊拼圖顏色有微小差異 */
+            filter: hue-rotate(calc(var(--i) * 15deg)); 
+        }
+
+        /* 輸入區域 */
+        .input-area { margin-top: 20px; }
+        textarea {
+            width: 100%; height: 80px; padding: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 15px; font-size: 0.95rem; color: #444;
+            outline: none; resize: none; box-sizing: border-box;
+            transition: 0.3s;
+        }
+        textarea:focus { background: white; }
+
+        button {
+            margin-top: 15px; width: 100%; padding: 12px;
+            background: #8e9775; color: white; border: none;
+            border-radius: 15px; font-size: 0.95rem; cursor: pointer;
+            transition: 0.3s; letter-spacing: 1px;
+        }
+        button:hover { background: #6d7756; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+
+        /* 歷史回顧跑馬燈 */
+        .history-box {
+            margin-top: 20px; min-height: 40px;
+            font-size: 0.85rem; font-style: italic; color: #777;
+            padding: 10px; border-top: 1px dashed rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>靈魂碎片拼圖</h1>
+    <div class="subtitle" id="pieces-count">目前已收集：0 / 25 塊碎片</div>
+
+    <div class="puzzle-board" id="board"></div>
+
+    <div class="input-area" id="action-zone">
+        <textarea id="today-note" placeholder="今天，你做的一件小壞事被原諒了？或是完成了一件愛自己的小事？寫下來吧..."></textarea>
+        <button id="submit-btn" onclick="collectFragment()">融入靈魂拼圖</button>
+    </div>
+
+    <div class="history-box" id="history-display">
+        </div>
+</div>
+
+<script>
+    const TOTAL_PIECES = 25;
+    let savedData = JSON.parse(localStorage.getItem('soul_fragments')) || [];
+
+    // 初始化拼圖板
+    function initBoard() {
+        const board = document.getElementById('board');
+        board.innerHTML = '';
+        
+        for (let i = 0; i < TOTAL_PIECES; i++) {
+            const piece = document.createElement('div');
+            piece.className = 'piece';
+            piece.style.setProperty('--i', i); // 用於彩色濾鏡計算
+            piece.id = `piece-${i}`;
+            
+            // 如果這個索引小於已保存的紀錄數量，就點亮它
+            if (i < savedData.length) {
+                piece.classList.add('unlocked');
+            }
+            board.appendChild(piece);
+        }
+        
+        updateUI();
+    }
+
+    // 更新介面狀態
+    function updateUI() {
+        document.getElementById('pieces-count').innerText = `目前已收集：${savedData.length} / ${TOTAL_PIECES} 塊碎片`;
+        
+        // 檢查今天是否已經寫過
+        const lastEntry = savedData[savedData.length - 1];
+        const todayStr = new Date().toDateString();
+        
+        if (lastEntry && lastEntry.date === todayStr) {
+            document.getElementById('today-note').disabled = true;
+            document.getElementById('today-note').placeholder = "今天你已經好好的愛過自己了，明天再回來吧 ✨";
+            document.getElementById('submit-btn').disabled = true;
+            document.getElementById('submit-btn').innerText = "今日能量已飽滿";
+        }
+
+        // 輪播過去寫下的愛自己語錄
+        if (savedData.length > 0) {
+            const randomEntry = savedData[Math.floor(Math.random() * savedData.length)];
+            document.getElementById('history-display').innerHTML = `“ ${randomEntry.text} ”`;
+        } else {
+            document.getElementById('history-display').innerText = "當你開始記錄，這裡會浮現你對自己的愛。";
+        }
+    }
+
+    // 點擊收集碎片
+    function collectFragment() {
+        const text = document.getElementById('today-note').value.trim();
+        if (!text) {
+            alert("請先寫下一點點今天的美好吧。");
+            return;
+        }
+
+        const newFragment = {
+            date: new Date().toDateString(),
+            text: text
+        };
+
+        savedData.push(newFragment);
+        localStorage.setItem('soul_fragments', JSON.stringify(savedData));
+
+        // 視覺特效：點亮下一塊拼圖
+        const nextIndex = savedData.length - 1;
+        if (nextIndex < TOTAL_PIECES) {
+            const targetPiece = document.getElementById(`piece-${nextIndex}`);
+            targetPiece.classList.add('unlocked');
+            targetPiece.style.transform = "scale(1.1)";
+            setTimeout(() => targetPiece.style.transform = "scale(1)", 800);
+        }
+
+        // 清空並更新
+        document.getElementById('today-note').value = '';
+        updateUI();
+
+        if (savedData.length === TOTAL_PIECES) {
+            alert("恭喜你！25塊靈魂碎片拼湊完成。你已經建立了一個無比穩固、充滿愛的內在宇宙 ✨");
+        }
+    }
+
+    initBoard();
+</script>
+
+</body>
+</html>
